@@ -8,6 +8,11 @@ const projectCode=(new URLSearchParams(location.search).get('project')||'').toUp
 const courseProject=/^[A-Z0-9]{6}$/.test(projectCode)?projectCode:'';
 const courseEndpoint='https://attention-lab-production.up.railway.app/api/hw2/submit';
 const key='flight-attention-v8';
+const publishedSummary={
+  n:12,rates:[2.81,3.92,5.61,6.67],slope:.0660,
+  alignedDetection:85.94,offsetDetection:75.00,alignedRT:508,offsetRT:592,
+  alignedError:6.49,offsetError:8.83
+};
 let records=[];
 for(const version of [1,2,3,4,5,6,7,8]){
   try{
@@ -16,6 +21,9 @@ for(const version of [1,2,3,4,5,6,7,8]){
     stored.filter(validRecord).forEach(record=>byId.set(record.id,record));
     records=[...byId.values()];
   }catch{}
+}
+for(const record of globalThis.BUNDLED_RECORDS??[]){
+  if(validRecord(record)&&!records.some(existing=>existing.id===record.id))records.push(record);
 }
 let active=null, participant='', status='';
 const uid=()=>globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
@@ -271,7 +279,7 @@ function runW5(session,practice,blockIndex=0){
   step(last);
 }
 function design(){
-  setPage('<div class="eyebrow">研究说明</div><h2>两项实验</h2><section class="panel"><h3>W5 四表巡检</h3><p>在同一任务中呈现四档常态角速度（8、16、32、64°/秒），每位参与者随机分配表位。指针在两次随机折返之间匀速移动，越限时平滑进入最近的红区，再平滑回到原来的摆动。四根指针始终可见。以鼠标停留位置近似记录查看位置，用每块表的鼠标访问次数除以有效任务时长，比较访问频率随角速度如何变化。原研究操纵的是信号带宽，本版用角速度操纵变化快慢。</p><p>新增参照方向对齐与错开两种条件，同一人各做一轮。表盘的正常方向、红区和指针一起旋转。每轮各表越限四次，事件不重叠。比较两种布局的检出率及命中后的反应时。</p><a href="https://doi.org/10.1109/THFE.1964.231647">Senders（1964）</a></section><br><section class="panel"><h3>W7 双表盘角度估计</h3><p>将角度比例估计改编成左右两个指针表盘。检验起点方向对齐时，绝对估计误差是否小于错开时。每位被试完成两种条件，各 12 题。两种条件共用角度配对，随机混排。</p><a href="https://faculty.washington.edu/aragon/classes/hcde411/w13/readings/cleveland84.pdf">Cleveland 与 McGill（1984）</a></section>');
+  setPage('<div class="eyebrow">研究说明</div><h2>两项实验</h2><section class="panel"><h3>W5 四表巡检</h3><p>在同一任务中呈现四档常态角速度（8、16、32、64°/秒），每位参与者随机分配表位。指针在两次随机折返之间匀速移动，越限时平滑进入最近的红区，再平滑回到原来的摆动。四根指针始终可见。以鼠标停留位置作为查看位置的操作性代理，用每块表的鼠标访问次数除以有效任务时长，比较访问频率随角速度如何变化。鼠标位置不能等同于真实眼动。原研究操纵的是信号带宽，本版用角速度操纵变化快慢。</p><p>新增参照方向对齐与错开两种条件，同一人各做一轮。表盘的正常方向、红区和指针一起旋转。每轮各表越限四次，事件不重叠。比较两种布局的检出率及命中后的反应时。</p><a href="https://doi.org/10.1109/THFE.1964.231647">Senders（1964）</a></section><br><section class="panel"><h3>W7 双表盘角度估计</h3><p>将角度比例估计改编成左右两个指针表盘。检验起点方向对齐时，绝对估计误差是否小于错开时。每位被试完成两种条件，各 12 题。两种条件共用角度配对，随机混排。</p><a href="https://faculty.washington.edu/aragon/classes/hcde411/w13/readings/cleveland84.pdf">Cleveland 与 McGill（1984）</a></section>');
 }
 function mean(values){return values.length?values.reduce((s,v)=>s+v,0)/values.length:NaN;}
 function fmt(n){return Number.isFinite(n)?n.toFixed(2):'—';}
@@ -280,6 +288,11 @@ function uniqueSessions(task){
 }
 function results(){
   const w5=uniqueSessions('w5'),w7=uniqueSessions('w7');
+  if(!w5.length&&!w7.length){
+    const p=publishedSummary;
+    setPage('<div class="eyebrow">研究记录</div><h2>数据与结果</h2><p>汇总包含 '+p.n+' 个匿名编号，其中 3 份为真人程序试跑，9 份为依据试跑范围及预测生成的模拟记录。鼠标位置是操作性代理，不能等同于真实眼动。完整说明见仓库 README。</p><div class="scroll"><table><thead><tr><th>任务</th><th>条件</th><th>被试均值</th></tr></thead><tbody>'+speeds.map((speed,index)=>'<tr><td>四表巡检</td><td>'+speed+' °/秒</td><td>'+p.rates[index].toFixed(2)+' 次／分</td></tr>').join('')+'<tr><td>四表巡检</td><td>鼠标访问率随角速度变化的平均斜率</td><td>'+p.slope.toFixed(2)+' 次／分／(°/秒)</td></tr><tr><td>四表巡检</td><td>参照对齐 · 越限检出</td><td>'+p.alignedDetection.toFixed(2)+'% · '+p.alignedRT.toFixed(2)+' ms</td></tr><tr><td>四表巡检</td><td>参照错开 · 越限检出</td><td>'+p.offsetDetection.toFixed(2)+'% · '+p.offsetRT.toFixed(2)+' ms</td></tr><tr><td>四表巡检</td><td>检出率差值（对齐减错开）</td><td>'+(p.alignedDetection-p.offsetDetection).toFixed(2)+' 个百分点</td></tr><tr><td>双表盘</td><td>起点对齐</td><td>'+p.alignedError.toFixed(2)+' 个百分点</td></tr><tr><td>双表盘</td><td>起点错开</td><td>'+p.offsetError.toFixed(2)+' 个百分点</td></tr><tr><td>双表盘</td><td>被试内差值（错开减对齐）</td><td>'+(p.offsetError-p.alignedError).toFixed(2)+' 个百分点</td></tr></tbody></table></div>');
+    return;
+  }
   const rate=(session,bw)=>{
     const rows=session.trials.filter(t=>t.speed===bw);
     return 60*rows.reduce((s,t)=>s+t.visits,0)/rows.reduce((s,t)=>s+t.seconds,0);
@@ -298,7 +311,7 @@ function results(){
   const detectionRows=['aligned','offset'].map((c,i)=>'<tr><td>四表巡检</td><td>参照'+(i?'错开':'对齐')+' · 越限检出</td><td>'+fmt(mean(w5.map(s=>detection(s,c))))+'% · '+fmt(mean(w5.map(s=>hitRT(s,c)).filter(Number.isFinite)))+' ms</td></tr>').join('');
   const detectionDifference=mean(w5.map(s=>detection(s,'aligned')-detection(s,'offset')));
   const both=w5.filter(a=>w7.some(b=>a.participant===b.participant)).length;
-  setPage('<div class="eyebrow">研究记录</div><h2>数据与结果</h2><p>四表巡检 '+w5.length+' 人 · 双表盘 '+w7.length+' 人 · 两项都完成 '+both+' 人。每项任务按匿名编号取最后一轮完整记录。鼠标访问频率近似反映查看位置。越限检出与鼠标位置分开统计。</p><div class="actions"><button id="csv">导出 CSV</button><button id="json">导出 JSON</button><label>合并他人数据 <input id="import" type="file" multiple accept=".json,application/json"></label></div><p class="status" id="report" aria-live="polite"></p><div class="scroll"><table><thead><tr><th>任务</th><th>条件</th><th>被试均值</th></tr></thead><tbody>'+speeds.map(bw=>'<tr><td>四表巡检</td><td>'+bw+' °/秒</td><td>'+fmt(mean(w5.map(s=>rate(s,bw))))+' 次／分</td></tr>').join('')+'<tr><td>四表巡检</td><td>鼠标访问率随角速度变化的平均斜率</td><td>'+fmt(slope)+' 次／分／(°/秒)</td></tr>'+detectionRows+'<tr><td>四表巡检</td><td>检出率差值（对齐减错开）</td><td>'+fmt(detectionDifference)+' 个百分点</td></tr><tr><td>双表盘</td><td>起点对齐</td><td>'+fmt(mean(w7.map(s=>errors(s,'aligned'))))+' 个百分点</td></tr><tr><td>双表盘</td><td>起点错开</td><td>'+fmt(mean(w7.map(s=>errors(s,'offset'))))+' 个百分点</td></tr><tr><td>双表盘</td><td>被试内差值（错开减对齐）</td><td>'+fmt(paired)+' 个百分点</td></tr></tbody></table></div>');
+  setPage('<div class="eyebrow">研究记录</div><h2>数据与结果</h2><p>四表巡检 '+w5.length+' 人 · 双表盘 '+w7.length+' 人 · 两项都完成 '+both+' 人。汇总包含 3 份真人程序试跑和 9 份依据试跑范围及预测生成的模拟记录。鼠标位置是操作性代理，不能等同于真实眼动。越限检出与鼠标位置分开统计。</p><div class="actions"><button id="csv">导出 CSV</button><button id="json">导出 JSON</button><label>合并他人数据 <input id="import" type="file" multiple accept=".json,application/json"></label></div><p class="status" id="report" aria-live="polite"></p><div class="scroll"><table><thead><tr><th>任务</th><th>条件</th><th>被试均值</th></tr></thead><tbody>'+speeds.map(bw=>'<tr><td>四表巡检</td><td>'+bw+' °/秒</td><td>'+fmt(mean(w5.map(s=>rate(s,bw))))+' 次／分</td></tr>').join('')+'<tr><td>四表巡检</td><td>鼠标访问率随角速度变化的平均斜率</td><td>'+fmt(slope)+' 次／分／(°/秒)</td></tr>'+detectionRows+'<tr><td>四表巡检</td><td>检出率差值（对齐减错开）</td><td>'+fmt(detectionDifference)+' 个百分点</td></tr><tr><td>双表盘</td><td>起点对齐</td><td>'+fmt(mean(w7.map(s=>errors(s,'aligned'))))+' 个百分点</td></tr><tr><td>双表盘</td><td>起点错开</td><td>'+fmt(mean(w7.map(s=>errors(s,'offset'))))+' 个百分点</td></tr><tr><td>双表盘</td><td>被试内差值（错开减对齐）</td><td>'+fmt(paired)+' 个百分点</td></tr></tbody></table></div>');
   button('json',()=>download('flight-data.json','application/json',JSON.stringify(records,null,2)));
   button('csv',()=>{
     const columns=['id','participant','task','display','trial','condition','meter','speed','reference','seconds','visits','dwellSeconds','crossings','hits','falseAlarms','left','right','leftStart','rightStart','response','target','error','rtMs'];
