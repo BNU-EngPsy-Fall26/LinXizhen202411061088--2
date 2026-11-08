@@ -1,9 +1,11 @@
 'use strict';
 const app=document.querySelector('#app');
+// 两项任务共用的刺激参数：W5 角速度与事件窗口，W7 角度配对。
 const speeds=[8,16,32,64];
 const monitorEvents=16;
 const excursionSeconds=3.2;
 const pairs=[[25,50],[32,80],[36,60],[40,55],[24,72],[44,80],[35,70],[27,90],[48,60],[50,75],[45,90],[36,80]];
+// 链接中含六位项目码时才上传课程平台；否则仅本地保存并支持导出。
 const projectCode=(new URLSearchParams(location.search).get('project')||'').toUpperCase();
 const courseProject=/^[A-Z0-9]{6}$/.test(projectCode)?projectCode:'';
 const courseEndpoint='https://attention-lab-production.up.railway.app/api/hw2/submit';
@@ -13,6 +15,7 @@ const publishedSummary={
   alignedDetection:85.94,offsetDetection:75.00,alignedRT:508,offsetRT:592,
   alignedError:6.49,offsetError:8.83
 };
+// 合并旧版本地数据与随网页发布的记录，并通过数据结构校验去重。
 let records=[];
 for(const version of [1,2,3,4,5,6,7,8]){
   try{
@@ -39,6 +42,7 @@ function navigate(render){
   cancel();render();
 }
 function button(id,fn){document.querySelector('#'+id).onclick=fn;}
+// 顶部导航统一经过 navigate，避免实验进行中无提示丢失数据。
 button('home',()=>navigate(home));button('design',()=>navigate(design));button('results',()=>navigate(results));
 function home(){
   setPage('<section class="hero"><div class="eyebrow">飞行训练舱 / 注意与显示</div><h1>看哪块表？<br>读得有多准？</h1><p>进入两项座舱训练。先在多块仪表间巡检，再在两块表盘之间估计指针角度的比例。</p></section><div class="pair"><section class="panel"><div class="eyebrow">01 / 视觉采样</div><h3>四表巡检</h3><p>四根指针持续可见，发现越限按空格。正式任务两轮，每轮约 90 秒。</p><button class="primary" id="w5">进入四表巡检</button></section><section class="panel"><div class="eyebrow">02 / 图形知觉</div><h3>双表盘角度估计</h3><p>比较左右指针转过的角度。24 道正式题，另有练习。</p><button class="primary" id="w7">进入角度估计</button></section></div><footer>请使用配有鼠标与键盘的电脑。正式数据可在结果页导出。</footer>');
@@ -67,6 +71,7 @@ function finish(session){
   button('goResults',results);button('goHome',home);
   if(courseProject) submitCourse(session,document.querySelector('#courseStatus'));
 }
+// 将本地记录转换为课程收数接口要求的逐试次格式。
 function coursePayload(session){
   let trials;
   if(session.task==='w5'){
@@ -107,6 +112,7 @@ function dial(start,angle,monitor=false){
     '<line x1="80" y1="17" x2="80" y2="66" stroke="#70d7bf" stroke-width="3" stroke-dasharray="5 3" transform="rotate('+start+' 80 80)"/>')+
     '<line class="needle" x1="80" y1="80" x2="80" y2="25" stroke="#f0f4ff" stroke-width="4" stroke-linecap="round" transform="rotate('+(start+angle)+' 80 80)"/><circle cx="80" cy="80" r="5" fill="#b5efc3"/></svg>';
 }
+// W7 在相同角度对上交叉生成起点对齐/错开条件，然后随机混排。
 function angleTrials(practice){
   const stimulus=practice?[[20,40],[28,70],[30,60],[35,50]]:pairs;
   const starts=shuffle([0,90,180,270]);
@@ -151,6 +157,7 @@ function runW7(session,practice){
   }
   show();
 }
+// W5 的常态指针在随机折返点之间匀速运动，速度由所在仪表条件决定。
 function monitorSignal(speed){
   const turnMagnitude=()=>25+Math.random()*16;
   let angle=Math.random()*40-20;
@@ -170,6 +177,7 @@ function monitorSignal(speed){
     return angle;
   };
 }
+// 每个时间窗只安排一次越限，使多个红区事件不会重叠。
 function monitorSchedule(blockSize,windowSeconds){
   const instruments=shuffle(Array.from({length:Math.max(4,blockSize)},(_,i)=>i%4)).slice(0,blockSize);
   return instruments.map((meter,i)=>({
@@ -178,6 +186,7 @@ function monitorSchedule(blockSize,windowSeconds){
     onset:null, hit:false
   }));
 }
+// W5 正式任务包含对齐与错开两轮，顺序、速度表位和错开角度均随机化。
 function runW5(session,practice,blockIndex=0){
   session.display='visible-speed-smooth-dense-alignment';
   session.order??=shuffle(['aligned','offset']);
@@ -279,10 +288,11 @@ function runW5(session,practice,blockIndex=0){
   step(last);
 }
 function design(){
-  setPage('<div class="eyebrow">研究说明</div><h2>两项实验</h2><section class="panel"><h3>W5 四表巡检</h3><p>在同一任务中呈现四档常态角速度（8、16、32、64°/秒），每位参与者随机分配表位。指针在两次随机折返之间匀速移动，越限时平滑进入最近的红区，再平滑回到原来的摆动。四根指针始终可见。以鼠标停留位置作为查看位置的操作性代理，用每块表的鼠标访问次数除以有效任务时长，比较访问频率随角速度如何变化。鼠标位置不能等同于真实眼动。原研究操纵的是信号带宽，本版用角速度操纵变化快慢。</p><p>新增参照方向对齐与错开两种条件，同一人各做一轮。表盘的正常方向、红区和指针一起旋转。每轮各表越限四次，事件不重叠。比较两种布局的检出率及命中后的反应时。</p><a href="https://doi.org/10.1109/THFE.1964.231647">Senders（1964）</a></section><br><section class="panel"><h3>W7 双表盘角度估计</h3><p>将角度比例估计改编成左右两个指针表盘。检验起点方向对齐时，绝对估计误差是否小于错开时。每位被试完成两种条件，各 12 题。两种条件共用角度配对，随机混排。</p><a href="https://faculty.washington.edu/aragon/classes/hcde411/w13/readings/cleveland84.pdf">Cleveland 与 McGill（1984）</a></section>');
+  setPage('<div class="eyebrow">研究说明</div><h2>两项实验</h2><section class="panel"><h3>W5 四表巡检</h3><p>在同一任务中呈现四档常态角速度（8、16、32、64°/秒），每位参与者随机分配表位。指针在两次随机折返之间匀速移动，越限时平滑进入最近的红区，再平滑回到原来的摆动。四根指针始终可见。以鼠标停留位置作为查看位置的操作性代理，用每块表的鼠标访问次数除以有效任务时长，比较访问频率随角速度如何变化。鼠标位置不能等同于真实眼动。原研究操纵的是信号带宽，本版用角速度操纵变化快慢。</p><p>新增参照方向对齐与错开两种条件，同一人各做一轮。这一改进基于显示兼容性与参照一致性：参照错开需要额外完成方向转换。表盘的正常方向、红区和指针一起旋转。每轮各表越限四次，事件不重叠。比较两种布局的检出率及命中后的反应时。</p><a href="https://doi.org/10.1109/THFE.1964.231647">Senders（1964）</a></section><br><section class="panel"><h3>W7 双表盘角度估计</h3><p>将角度比例估计改编成左右两个指针表盘。改进依据是共同参照有助于视觉比例比较：起点错开时需要额外的心理旋转或参照转换。检验起点方向对齐时，绝对估计误差是否小于错开时。每位被试完成两种条件，各 12 题。两种条件共用角度配对，随机混排。</p><a href="https://faculty.washington.edu/aragon/classes/hcde411/w13/readings/cleveland84.pdf">Cleveland 与 McGill（1984）</a></section>');
 }
 function mean(values){return values.length?values.reduce((s,v)=>s+v,0)/values.length:NaN;}
 function fmt(n){return Number.isFinite(n)?n.toFixed(2):'—';}
+// 结果按参与编号去重，确保每人每项任务只纳入一轮完整记录。
 function uniqueSessions(task){
   return [...new Map(records.filter(r=>r.task===task).map(r=>[r.participant,r])).values()];
 }
@@ -337,6 +347,7 @@ function results(){
     results();document.querySelector('#report').textContent='新增 '+added+' 轮，跳过 '+skipped+' 项无效数据。'+warning;
   };
 }
+// 导入数据必须同时满足任务标识、条件数量和必需数值字段的校验。
 function validRecord(record){
   if(!record||typeof record.id!=='string'||typeof record.participant!=='string'||!Array.isArray(record.trials))return false;
   if(record.task==='w7')return ['aligned','offset'].every(c=>record.trials.filter(t=>t&&t.condition===c&&Number.isFinite(t.error)).length===12)&&record.trials.length===24;
